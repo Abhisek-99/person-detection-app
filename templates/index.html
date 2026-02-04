@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Multi-Camera Person Detection</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <link rel="stylesheet" href="style.css" /> -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .controls h3 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input {
+            padding: 12px;
+            border-radius: 5px;
+            border: none;
+            background: #3a3a3a;
+            color: white;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border-radius: 5px;
+            border: none;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .camera-box {
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .camera-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .camera-box h3 {
+            color: #4CAF50;
+            display: flex;
+            align-items: center;
+        }
+
+        .camera-box img {
+            width: 100%;
+            border-radius: 5px;
+            background: #000;
+            min-height: 200px;
+        }
+
+        .remove-btn {
+            background: #f44336;
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+
+        .remove-btn:hover {
+            background: #da190b;
+        }
+
+        .status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .instructions {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .instructions h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .camera-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎥 Multi-Camera Person Detection System</h1>
+
+        <div class="instructions">
+            <h3>📱 How to Add Your Phone Camera:</h3>
+            <ol>
+                <li>Install <strong>"IP Webcam"</strong> app on Android (or <strong>"iVCam"</strong> on iOS)</li>
+                <li>Open the app and tap <strong>"Start Server"</strong></li>
+                <li>Note the URL shown (e.g., http://192.168.1.100:8080)</li>
+                <li>In the form below:
+                    <ul>
+                        <li><strong>Camera ID:</strong> Enter a name (e.g., "phone1", "kitchen")</li>
+                        <li><strong>Camera URL:</strong> Enter the URL from your phone + <strong>/video</strong></li>
+                        <li>Example: <code>http://192.168.1.100:8080/video</code></li>
+                    </ul>
+                </li>
+                <li>Click "Add Camera"</li>
+            </ol>
+        </div>
+
+        <div class="controls">
+            <h3>➕ Add New Camera</h3>
+            <div class="input-group">
+                <input type="text" id="cameraId" placeholder="Camera ID (e.g., phone1, outdoor)">
+                <input type="text" id="cameraUrl" placeholder="Camera URL (e.g., http://192.168.1.100:8080/video)">
+                <button onclick="addCamera()">Add Camera</button>
+            </div>
+        </div>
+
+        <div class="camera-grid" id="cameraGrid">
+            <!-- Default laptop camera -->
+            <div class="camera-box" id="camera-laptop">
+                <div class="camera-header">
+                    <h3>
+                        <span class="status"></span>
+                        💻 Laptop Camera
+                    </h3>
+                    <button class="remove-btn" onclick="removeCamera('laptop')">Remove</button>
+                </div>
+                <img src="/video/laptop" alt="Laptop Camera Feed">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function addCamera() {
+            const cameraId = document.getElementById('cameraId').value.trim();
+            const cameraUrl = document.getElementById('cameraUrl').value.trim();
+
+            if (!cameraId || !cameraUrl) {
+                alert('⚠️ Please enter both Camera ID and URL');
+                return;
+            }
+
+            fetch('/add_camera', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    camera_id: cameraId,
+                    camera_url: cameraUrl
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        addCameraToGrid(cameraId);
+                        document.getElementById('cameraId').value = '';
+                        document.getElementById('cameraUrl').value = '';
+                    } else {
+                        alert('❌ Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('❌ Network error: ' + error);
+                });
+        }
+
+        function addCameraToGrid(cameraId) {
+            const grid = document.getElementById('cameraGrid');
+            const cameraBox = document.createElement('div');
+            cameraBox.className = 'camera-box';
+            cameraBox.id = `camera-${cameraId}`;
+            cameraBox.innerHTML = `
+                <div class="camera-header">
+                    <h3>
+                        <span class="status"></span>
+                        📱 ${cameraId}
+                    </h3>
+                    <button class="remove-btn" onclick="removeCamera('${cameraId}')">Remove</button>
+                </div>
+                <img src="/video/${cameraId}" alt="${cameraId} Feed">
+            `;
+            grid.appendChild(cameraBox);
+        }
+
+        function removeCamera(cameraId) {
+            if (!confirm(`Remove camera ${cameraId}?`)) return;
+
+            fetch(`/remove_camera/${cameraId}`, {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const cameraBox = document.getElementById(`camera-${cameraId}`);
+                        if (cameraBox) {
+                            cameraBox.remove();
+                        }
+                        alert('✅ ' + data.message);
+                    } else {
+                        alert('❌ Error: ' + data.message);
+                    }
+                });
+        }
+    </script>
+</body>
+
+</html>
