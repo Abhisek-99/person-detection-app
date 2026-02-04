@@ -1,0 +1,3 @@
+detected_persons/
+*.pt
+__pycache__/
